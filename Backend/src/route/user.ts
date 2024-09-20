@@ -1,59 +1,45 @@
-import { PrismaClient } from "@prisma/client/edge";
-import { withAccelerate } from "@prisma/extension-accelerate";
-import { Hono } from "hono";
-import { sign } from "hono/jwt";
+import express from 'express';
+import jwt from 'jsonwebtoken';
+import bcrypt from 'bcryptjs';
+import { User } from '../models/user.model';
 
-export const userRouter = new Hono<{
-	Bindings: {
-		DATABASE_URL: string,
-		JWT_SECRET: string,
-	}
-}>();
-userRouter.post('/signup', async (c) => {
-	const prisma = new PrismaClient({
-		datasourceUrl: c.env?.DATABASE_URL	,
-	}).$extends(withAccelerate());
+export const userRouter = express.Router();
 
-	const body = await c.req.json();
-	try {
-		const user = await prisma.user.create({
-			data: {
-				email: body.email,
-				password: body.password
-			}
-		});
-		const jwt = await sign({ id: user.id }, c.env.JWT_SECRET);
-		return c.json({ jwt });
-	} catch(e) {
-    console.log(e);
-    
-		c.status(403);
-		return c.json({ error: "error while signing up" });
-	}
-})
+// Sign-up route
+userRouter.post('/signup', async (req, res) => {
+  try {
+    const { email, password } = req.body;
+    const hashedPassword = await bcrypt.hash(password, 10);
 
-userRouter.post('/signin' , async (c) =>{
-  const prisma = new PrismaClient({
-		datasourceUrl: c.env?.DATABASE_URL	,
-	}).$extends(withAccelerate());
+    const user = new User({ email, password: hashedPassword });
+    await user.save();
 
-	const body = await c.req.json();
-	try {
-		const user = await prisma.user.findFirst({
-			where: {
-				email: body.email,
-				password: body.password
-			}
-		})
-    if(!user){
-      c.status(403);
-		return c.json({ error: "Incorrect creds" });
+    const token = jwt.sign({ id: user._id }, process.env.JWT_SECRET || 'your-secret-key', { expiresIn: '1h' });
+
+    res.json({ jwt: token });
+  } catch (e) {
+    console.error(e);
+    res.status(403).json({ error: 'Error while signing up' });
+  }
+});
+
+// Sign-in route
+userRouter.post('/signin', async (req, res) => {
+  try {
+    const { email, password } = req.body;
+    const user = await User.findOne({ email });
+
+    if (!user || !(await bcrypt.compare(password, user.password))) {
+      return res.status(403).json({ error: 'Incorrect credentials' });
     }
-		const jwt = await sign({ id: user.id }, c.env.JWT_SECRET);
-		return c.json({ jwt });
-	} catch(e) {
-    console.log(e);
-    c.status(411)
-    return c.json({ error: "error while sign up" });
-	}
-})
+
+    const token = jwt.sign({ id: user._id }, process.env.JWT_SECRET || 'your-secret-key', { expiresIn: '1h' });
+
+    res.json({ jwt: token });
+  } catch (e) {
+    console.error(e);
+    res.status(411).json({ error: 'Error while signing in' });
+  }
+});
+
+export default userRouter;
