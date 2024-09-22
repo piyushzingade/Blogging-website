@@ -6,6 +6,7 @@
   "dependencies": {
     "@piyush555/medium-common": "^1.0.0",
     "@types/bcryptjs": "^2.4.6",
+    "@types/cors": "^2.8.17",
     "@types/dotenv": "^8.2.0",
     "@types/express": "^4.17.21",
     "@types/jsonwebtoken": "^9.0.7",
@@ -14,6 +15,7 @@
     "binary-extensions": "^2.3.0",
     "body-parser": "^1.20.3",
     "cookie-signature": "^1.0.6",
+    "cors": "^2.8.5",
     "create-require": "^1.1.1",
     "dotenv": "^16.4.5",
     "express": "^4.21.0",
@@ -21,7 +23,7 @@
     "mongodb": "^6.8.0",
     "mongodb-connection-string-url": "^3.0.1",
     "mongoose": "^8.6.3",
-    "nodemon": "^3.1.6", 
+    "nodemon": "^3.1.6",
     "ts-node": "^10.9.2",
     "type-is": "^1.6.18",
     "typescript": "^5.6.2",
@@ -38,8 +40,8 @@
   },
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
-    "build" : " npx rimraf dist && npx tsc  ",
-    "start" :"node dist/index.js",
+    "build": " npx rimraf dist && npx tsc  ",
+    "start": "node dist/index.js",
     "serve": "npx tsc -w & nodemon dist/index.js"
   },
   "keywords": [],
