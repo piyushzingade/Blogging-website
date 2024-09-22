@@ -21,7 +21,7 @@ export const Auth = ({ type }: { type: "signup" | "signin" }) => {
       );
       const { jwt } = response.data;
       localStorage.setItem("token", jwt);
-      navigate("/blog");
+      navigate("/blogs");
     } catch (e) {
       if (axios.isAxiosError(e) && e.response?.status === 403) {
         alert("Incorrect credentials. Please try again.");
