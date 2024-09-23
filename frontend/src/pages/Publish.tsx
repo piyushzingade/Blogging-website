@@ -11,7 +11,6 @@ export const Publish = () => {
 
   const handlePublish = async () => {
     const token = localStorage.getItem("token");
-    console.log("Token from localStorage:", token); // Debugging log
 
     if (!token) {
       console.error("Token not found. Please login.");

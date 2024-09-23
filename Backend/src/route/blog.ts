@@ -1,7 +1,7 @@
 import express, { Request, Response, NextFunction } from 'express';
 import jwt from 'jsonwebtoken';
-import { Blog } from '../models/blog.model';
-import { createBlogInput, updateBlogInput } from "@piyush555/medium-common";
+import { Blog } from '../models/blog.model'; // Assuming Blog model is already defined
+import { createBlogInput, updateBlogInput } from '@piyush555/medium-common'; // Assuming these are the same validation schemas
 
 const blogRouter = express.Router();
 blogRouter.use(express.json());
@@ -14,20 +14,18 @@ interface AuthenticatedRequest extends Request {
 }
 
 // Middleware for JWT verification and setting userId in request
-const verifyToken = (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
-  const authHeader = req.headers.authorization || '';
-  const token = authHeader.split(' ')[1]; // Extract the token from the Authorization header
-
-  if (!token) {
-    return res.status(403).json({ message: 'No token provided' });
-  }
-
+const verifyToken = (req: Request, res: Response, next: NextFunction) => {
+  const authHeader = req.headers.authorization || "";
   try {
-    const decoded = jwt.verify(token, JWT_SECRET) as { id: string };
-    req.userId = decoded.id;
-    next();
+    const user = jwt.verify(authHeader, JWT_SECRET) as { id: string };
+    if (user) {
+      req.body.userId = user.id;
+      next();
+    } else {
+      res.status(403).json({ message: "You are not logged in" });
+    }
   } catch (error) {
-    res.status(403).json({ message: 'Invalid token' });
+    res.status(403).json({ message: "Invalid token" });
   }
 };
 
@@ -37,14 +35,14 @@ blogRouter.post('/', verifyToken, async (req: AuthenticatedRequest, res: Respons
   const { success, error } = createBlogInput.safeParse({ title, content });
 
   if (!success) {
-    return res.status(400).json({ message: error?.issues[0]?.message || "Invalid input" });
+    return res.status(400).json({ message: error?.issues[0]?.message || 'Invalid input' });
   }
 
   try {
     const blog = new Blog({
       title,
       content,
-      author: req.userId, // Set the author from the authenticated user
+      author: req.body.userId, // Set the author from the authenticated user
     });
 
     await blog.save();
@@ -63,12 +61,12 @@ blogRouter.put('/:id', verifyToken, async (req: AuthenticatedRequest, res: Respo
   const { success, error } = updateBlogInput.safeParse({ title, content });
 
   if (!success) {
-    return res.status(400).json({ message: error?.issues[0]?.message || "Invalid input" });
+    return res.status(400).json({ message: error?.issues[0]?.message || 'Invalid input' });
   }
 
   try {
     const blog = await Blog.findOneAndUpdate(
-      { _id: id, author: req.userId }, // Ensure the blog belongs to the authenticated user
+      { _id: id, author: req.body.userId }, // Ensure the blog belongs to the authenticated user
       { title, content },
       { new: true }
     );
@@ -89,7 +87,7 @@ blogRouter.delete('/:id', verifyToken, async (req: AuthenticatedRequest, res: Re
   const { id } = req.params;
 
   try {
-    const blog = await Blog.findOneAndDelete({ _id: id, author: req.userId });
+    const blog = await Blog.findOneAndDelete({ _id: id, author: req.body.userId });
 
     if (!blog) {
       return res.status(404).json({ message: 'Blog post not found or unauthorized' });
@@ -121,8 +119,7 @@ blogRouter.get('/:id', async (req: Request, res: Response) => {
   const { id } = req.params;
 
   try {
-    const blog = await Blog.findById(id)
-      .populate('author', 'name');
+    const blog = await Blog.findById(id).populate('author', 'name');
 
     if (!blog) {
       return res.status(404).json({ message: 'Blog post not found' });
