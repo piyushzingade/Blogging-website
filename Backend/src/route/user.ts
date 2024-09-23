@@ -1,45 +1,71 @@
 import express from 'express';
+import mongoose from 'mongoose';
 import jwt from 'jsonwebtoken';
 import bcrypt from 'bcryptjs';
-import { User } from '../models/user.model';
+import { signupInput, signinInput } from "@piyush555/medium-common";
+
+// Mongoose User Schema
+import { User} from '../models/user.model';
 
 export const userRouter = express();
+userRouter.use(express.json());
 
-// Sign-up route
+const JWT_SECRET = process.env.JWT_SECRET || 'piyush';
+
+
+
+// Signup Route
 userRouter.post('/signup', async (req, res) => {
-  try {
-    const { username, password } = req.body;
-    const hashedPassword = await bcrypt.hash(password, 10);
-
-    const user = new User({ username, password: hashedPassword });
-    await user.save();
-
-    const token = jwt.sign({ id: user._id }, process.env.JWT_SECRET || 'piyush', { expiresIn: '1h' });
-
-    res.json({ jwt: token });
-  } catch (e) {
-    console.error(e);
-    res.status(403).json({ error: 'Error while signing up' });
-  }
-});
-
-// Sign-in route
-userRouter.post('/signin', async (req, res) => {
-  try {
-    const { username, password } = req.body;
-    const user = await User.findOne({ username });
-
-    if (!user || !(await bcrypt.compare(password, user.password))) {
-      return res.status(403).json({ error: 'Incorrect credentials' });
+    const body = req.body;
+    const { success } = signupInput.safeParse(body);
+    
+    if (!success) {
+        return res.status(400).json({ message: "Inputs not correct" });
     }
 
-    const token = jwt.sign({ id: user._id }, process.env.JWT_SECRET || 'piyush', { expiresIn: '1h' });
+    try {
+        // Hash the password before saving
+        const hashedPassword = await bcrypt.hash(body.password, 10);
 
-    res.json({ jwt: token });
-  } catch (e) {
-    console.error(e);
-    res.status(411).json({ error: 'Error while signing in' });
-  }
+        const user = new User({
+            username: body.username,
+            password: hashedPassword,
+            name: body.name
+        });
+
+        await user.save();
+
+        const token = jwt.sign({ id: user._id }, JWT_SECRET, { expiresIn: '1h' });
+
+        return res.status(201).json({ jwt: token });
+    } catch (e) {
+        console.error(e);
+        return res.status(500).json({ message: 'Error creating user' });
+    }
 });
 
-export default userRouter;
+// Signin Route
+userRouter.post('/signin', async (req, res) => {
+    const body = req.body;
+    const { success } = signinInput.safeParse(body);
+
+    if (!success) {
+        return res.status(400).json({ message: "Inputs not correct" });
+    }
+
+    try {
+        const user = await User.findOne({ username: body.username });
+
+        if (!user || !(await bcrypt.compare(body.password, user.password))) {
+            return res.status(403).json({ message: "Incorrect credentials" });
+        }
+
+        const token = jwt.sign({ id: user._id }, JWT_SECRET, { expiresIn: '1h' });
+
+        return res.status(200).json({ jwt: token });
+    } catch (e) {
+        console.error(e);
+        return res.status(500).json({ message: 'Error signing in' });
+    }
+});
+
